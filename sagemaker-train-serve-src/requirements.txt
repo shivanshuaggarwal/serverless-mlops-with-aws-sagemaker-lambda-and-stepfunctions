@@ -1,0 +1,9 @@
+boto3==1.9.248
+sagemaker==1.42.8
+numpy==1.16.4
+fastparquet==0.3.2
+six==1.11.0
+pandas==0.24.2
+xgboost==0.90
+s3fs==0.1.5
+scikit_learn==0.21.3
