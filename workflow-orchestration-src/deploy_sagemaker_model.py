@@ -6,21 +6,26 @@ sagemaker_boto3 = boto3.client('sagemaker')
 def lambda_handler(event, context):
     """ Creates a SageMaker model and either
     updates or creates an endpoint
-    Args:
-        EndPointConfigName (string): name for model config.
-        EndPointName (string): name for model EndPointName.
-        ModelURL (string): S3 path to model artifact.
-        TrainingImage (string): ECR image.
-        Program (string): name of script used for training.
-        Directory (string): s3 directory where sagemaker scripts are located.
-        Region (string): region
-    Returns
-        (Mone)
     """
-    name = event['EndPointConfigName']
-    endpoint = event['EndPointName']
-    model_data_url = event['OUTPUT_ARTIFACTS_PATH']
-    container = event['TrainingImage']
+    BUCKET = event["BUCKET"]
+    WORKFLOW_NAME = event["WORKFLOW_NAME"]
+    WORKFLOW_DATE_TIME = event["WORKFLOW_DATE_TIME"]
+
+    prefix = "s3://{}/{}".format(BUCKET, WORKFLOW_DATE_TIME)
+    name = "{}-{}".format(WORKFLOW_NAME, WORKFLOW_DATE_TIME)
+    endpoint = WORKFLOW_NAME
+    container = event['SERVING_IMAGE']
+    
+            
+    #model_prefix = "{}/{}".format(prefix, "model-artifacts")
+    #model_suffix = "{}-{}/{}".format(WORKFLOW_NAME, WORKFLOW_DATE_TIME, "output/model.tar.gz")
+    #model_data_url = "{}/{}".format(model_prefix, model_suffix)
+
+    model_data_url = sagemaker_boto3.describe_training_job(TrainingJobName=name)['ModelArtifacts']['S3ModelArtifacts']
+
+    
+    event["SOURCE_CODE_DIR"] = "{}/{}".format(prefix, "source-code/sourcedir.tar.gz")
+
     
     print('Creating model resource from training artifact...')
     create_model(name, container, model_data_url, event)
@@ -59,9 +64,9 @@ def create_model(name, container, model_data_url, env_params):
                 'ModelDataUrl': model_data_url,
                 'Environment':{
                     "SAGEMAKER_CONTAINER_LOG_LEVEL": "20",
-                    "SAGEMAKER_PROGRAM": env_params['Program'],
-                    "SAGEMAKER_SUBMIT_DIRECTORY": env_params['Directory'],
-                    "SAGEMAKER_REGION": env_params['Region'],
+                    "SAGEMAKER_PROGRAM": env_params['SERVING_SCRIPT'],
+                    "SAGEMAKER_SUBMIT_DIRECTORY": env_params['SOURCE_CODE_DIR'],
+                    "SAGEMAKER_REGION": env_params['REGION'],
                     "SAGEMAKER_ENABLE_CLOUDWATCH_METRICS": "false"
                 }
             },
@@ -88,8 +93,8 @@ def create_endpoint_config(name, env_params):
                 {
                     'VariantName': 'AllTraffic',                    
                     'ModelName': name,
-                    'InitialInstanceCount': env_params['DeploymentInstanceCount'],
-                    'InstanceType': env_params['DeploymentInstanceType']
+                    'InitialInstanceCount': env_params['SERVING_INSTANCE_COUNT'],
+                    'InstanceType': env_params['SERVING_INSTANCE_TYPE']
                 }
             ]
         )

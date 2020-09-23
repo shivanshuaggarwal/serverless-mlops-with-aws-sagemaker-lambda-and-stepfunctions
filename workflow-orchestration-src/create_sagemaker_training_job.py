@@ -4,31 +4,26 @@ sagemaker_boto3 = boto3.client('sagemaker')
 
 def lambda_handler(event, context):
     """ Creates a SageMaker training job
-    Args:
-        TRAINING_JOB_NAME (string): name for training job.
-        TRAINING_DATA (string): Path to training datasets directory on S3.
-        TESTING_DATA (string): Path to testing datasets directory on S3.
-        SOURCE_CODE (string): Path to source-code directory on S3 (tarball).
-        ENTRY_POINT_SCRIPT (string): Name of the entry point script for model training.
-        TRAINING_IMAGE (string): ECR image that will host model training.
-        ROLE_ARN (string): IAM Role to allow the runtime resource to call SageMaker.
-        OUTPUT_ARTIFACTS_PATH (string): Path to save model artifacts on S3.
-    Returns
-        (None)
     """
 
-    TRAINING_JOB_NAME = event['TRAINING_JOB_NAME']
-    TRAINING_DATA = event['TRAINING_DATA']
-    TESTING_DATA = event['TESTING_DATA']
-    SOURCE_CODE = event['SOURCE_CODE']
-    ENTRY_POINT_SCRIPT = event['ENTRY_POINT_SCRIPT']
+    BUCKET = event["BUCKET"]
+    WORKFLOW_DATE_TIME = event["WORKFLOW_DATE_TIME"]
+    PREFIX = "s3://{}/{}".format(BUCKET, WORKFLOW_DATE_TIME)
+
+    TRAINING_DATA = "{}/data/train/train.csv".format(PREFIX)
+    VALIDATION_DATA = "{}/data/validation/validation.csv".format(PREFIX)
+    SOURCE_CODE = "{}/{}".format(PREFIX, "source-code/sourcedir.tar.gz")
+    
+    ENTRY_POINT_SCRIPT = event['TRAINING_SCRIPT']
     TRAINING_IMAGE = event['TRAINING_IMAGE']
     ROLE_ARN = event['ROLE_ARN']
-    OUTPUT_ARTIFACTS_PATH = event['OUTPUT_ARTIFACTS_PATH']
-    INSTANCE_TYPE = event['INSTANCE_TYPE']
-    INSTANCE_COUNT = event['INSTANCE_COUNT']
-    VOLUME_SIZE_GB = event['VOLUME_SIZE_GB']
-    PROCESSING_JOB_NAME = event['PROCESSING_JOB_NAME']
+    OUTPUT_ARTIFACTS_PATH = 's3://{}/{}'.format(BUCKET, WORKFLOW_DATE_TIME + '/model-artifacts/')
+    INSTANCE_TYPE = event['TRAINING_INSTANCE_TYPE']
+    INSTANCE_COUNT = event['TRAINING_INSTANCE_COUNT']
+    VOLUME_SIZE_GB = event['TRAINING_VOLUME_SIZE_GB']
+    
+    WORKFLOW_NAME = event["WORKFLOW_NAME"]
+    TRAINING_JOB_NAME = "{}-{}".format(WORKFLOW_NAME, WORKFLOW_DATE_TIME)
 
     try:
         response = sagemaker_boto3.create_training_job(
@@ -36,8 +31,6 @@ def lambda_handler(event, context):
             HyperParameters={
                 'n_estimators': '300',
                 'min_samples_leaf': '3',
-                #'features': 'CRIM ZN INDUS CHAS NOX RM AGE DIS RAD TAX PTRATIO B LSTAT',
-                #'target': 'PRICE',
                 'sagemaker_program': ENTRY_POINT_SCRIPT,
                 'sagemaker_submit_directory': SOURCE_CODE      
             },
@@ -61,11 +54,11 @@ def lambda_handler(event, context):
                     }
                 },
                 {
-                    'ChannelName': 'test',
+                    'ChannelName': 'validation',
                     'DataSource': {
                         'S3DataSource': {
                             'S3DataType': 'S3Prefix',
-                            'S3Uri': TESTING_DATA,
+                            'S3Uri': VALIDATION_DATA,
                             'S3DataDistributionType': 'FullyReplicated',
                         }
                     }
@@ -85,3 +78,5 @@ def lambda_handler(event, context):
         print(e)
         print('Unable to create model.')
         raise(e)
+    
+    return response

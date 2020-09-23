@@ -2,21 +2,21 @@ import boto3
 sagemaker_boto3 = boto3.client('sagemaker')
 
 def lambda_handler(event, context):
-    DATA_SOURCE = event["DATA_SOURCE"]
     BUCKET = event["BUCKET"]
     WORKFLOW_DATE_TIME = event["WORKFLOW_DATE_TIME"]
-    SOURCE_CODE_PREFIX = event["SOURCE_CODE_PREFIX"]
+    JOB_NAME = "{}-{}".format(event["WORKFLOW_NAME"], WORKFLOW_DATE_TIME)
 
+    DATA_SOURCE = event["DATA_SOURCE"]
+    SOURCE_CODE_PREFIX = "{}/source-code".format(WORKFLOW_DATE_TIME)
+    PROCESSING_SCRIPT = event["PROCESSING_SCRIPT"]
+    
     # Output data paths
-    train_prefix = "{}/data/train".format(WORKFLOW_DATE_TIME)
-    val_prefix = "{}/data/validation".format(WORKFLOW_DATE_TIME)
-    test_prefix = "{}/data/test".format(WORKFLOW_DATE_TIME)
-
-    s3_train_path = 's3://{}/{}'.format(BUCKET, train_prefix)
-    s3_valid_path = 's3://{}/{}'.format(BUCKET, val_prefix)
-    s3_test_path = 's3://{}/{}'.format(BUCKET, test_prefix)
+    TRAIN_PATH = 's3://{}/{}/data/train'.format(BUCKET, WORKFLOW_DATE_TIME)
+    VALID_PATH = 's3://{}/{}/data/validation'.format(BUCKET, WORKFLOW_DATE_TIME)
+    TEST_PATH = 's3://{}/{}/data/test'.format(BUCKET, WORKFLOW_DATE_TIME)
 
     response = sagemaker_boto3.create_processing_job(
+        ProcessingJobName = JOB_NAME,
         ProcessingInputs = [
             {'InputName': 'input-1',
              'S3Input': {'S3Uri': DATA_SOURCE,
@@ -28,7 +28,7 @@ def lambda_handler(event, context):
                         }
             },
             {'InputName': 'code',
-             'S3Input': {'S3Uri': "s3://{}/{}/{}".format(BUCKET, SOURCE_CODE_PREFIX, event["ENTRY_POINT_SCRIPT"]),
+             'S3Input': {'S3Uri': "s3://{}/{}/{}".format(BUCKET, SOURCE_CODE_PREFIX, PROCESSING_SCRIPT),
                          'LocalPath': '/opt/ml/processing/input/code',
                          'S3DataType': 'S3Prefix',
                          'S3InputMode': 'File',
@@ -39,35 +39,34 @@ def lambda_handler(event, context):
         ],
         ProcessingOutputConfig = {
             'Outputs': [{'OutputName': 'train',
-                         'S3Output': {'S3Uri': s3_train_path,
+                         'S3Output': {'S3Uri': TRAIN_PATH,
                                       'LocalPath': '/opt/ml/processing/train',
                                       'S3UploadMode': 'EndOfJob'
                                      }
                         },
                         {'OutputName': 'valid',
-                         'S3Output': {'S3Uri': s3_valid_path,
+                         'S3Output': {'S3Uri': VALID_PATH,
                                       'LocalPath': '/opt/ml/processing/validation',
                                       'S3UploadMode': 'EndOfJob'
                                      }
                         },
                         {'OutputName': 'test',
-                         'S3Output': {'S3Uri': s3_test_path,
+                         'S3Output': {'S3Uri': TEST_PATH,
                                       'LocalPath': '/opt/ml/processing/test',
                                       'S3UploadMode': 'EndOfJob'
                                      }
                         }]
         },
-        ProcessingJobName = event["JOB_NAME"],
-        ProcessingResources = {'ClusterConfig': {'InstanceCount': event["INSTANCE_COUNT"],
-                                                 'InstanceType': event["INSTANCE_TYPE"],
-                                                 'VolumeSizeInGB': event["VOLUME_SIZE_GB"]
+        ProcessingResources = {'ClusterConfig': {'InstanceCount': event["PROCESSING_INSTANCE_COUNT"],
+                                                 'InstanceType': event["PROCESSING_INSTANCE_TYPE"],
+                                                 'VolumeSizeInGB': event["PROCESSING_VOLUME_SIZE_GB"]
                                                 }
                               },
         StoppingCondition = {'MaxRuntimeInSeconds': 86400},
-        AppSpecification = {'ImageUri': event["TRAINING_IMAGE"],
+        AppSpecification = {'ImageUri': event["PROCESSING_IMAGE"],
                             'ContainerArguments':  ['--train-test-split-ratio', '0.2'], 
                             'ContainerEntrypoint': ['python3', 
-                                                    '/opt/ml/processing/input/code/'+event["ENTRY_POINT_SCRIPT"]
+                                                    '/opt/ml/processing/input/code/'+ event["PROCESSING_SCRIPT"]
                                                    ]
                            },
         RoleArn = event["ROLE_ARN"]

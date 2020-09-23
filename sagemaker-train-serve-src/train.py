@@ -26,9 +26,11 @@ if __name__ =='__main__':
     # Data, model, and output directories
     parser.add_argument('--model-dir', type=str, default=os.environ.get('SM_MODEL_DIR'))
     parser.add_argument('--train', type=str, default=os.environ.get('SM_CHANNEL_TRAIN'))
+    parser.add_argument('--validation', type=str,  default=os.environ.get('SM_CHANNEL_VALIDATION'))
     parser.add_argument('--test', type=str, default=os.environ.get('SM_CHANNEL_TEST'))
     parser.add_argument('--train-file', type=str, default='train.csv')
-    parser.add_argument('--test-file', type=str, default='validation.csv')
+    parser.add_argument('--validation-file', type=str, default='validation.csv')
+    parser.add_argument('--test-file', type=str, default='test.csv')
     parser.add_argument('--features', type=str)  # in this script we ask user to explicitly name features
     parser.add_argument('--target', type=str) # in this script we ask user to explicitly name the target
 
@@ -36,7 +38,7 @@ if __name__ =='__main__':
 
     print('reading data')
     train_df = pd.read_csv(os.path.join(args.train, args.train_file))
-    test_df = pd.read_csv(os.path.join(args.test, args.test_file))
+    test_df = pd.read_csv(os.path.join(args.validation, args.validation_file))
 
     print('building training and testing datasets')
     features = metadata.metadata["features"]#args.features.split()

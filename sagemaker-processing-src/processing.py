@@ -13,6 +13,7 @@ from time import gmtime, strftime
 warnings.filterwarnings(action='ignore', category=DataConversionWarning)
 
 LOCAL_DATA_PATH = "/opt/ml/processing" 
+#LOCAL_DATA_PATH = "./data" 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
