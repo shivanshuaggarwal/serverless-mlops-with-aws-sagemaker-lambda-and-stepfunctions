@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.externals import joblib
+import joblib
 
 print(metadata.metadata["features"])
 
